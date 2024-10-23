@@ -2,10 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"library/facade" // Use the actual module name
 )
-
-var bookFacade = facade.NewBookFacade()
 
 // AddBookHandler handles adding a book.
 func AddBookHandler(c *gin.Context) {

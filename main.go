@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+
 	// Initialize Elasticsearch and Redis clients
 	redis.InitRedisClient()
 	elastic.InitElasticClient()
@@ -20,6 +21,8 @@ func main() {
 	r.DELETE("/books", handler.DeleteBookHandler)
 	r.GET("/search", handler.SearchBooksHandler)
 	r.GET("/store", handler.StoreStatsHandler)
+
+	//Activity route
 	r.GET("/activity", handler.ActivityHandler)
 
 	// Start the server
