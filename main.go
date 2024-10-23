@@ -3,28 +3,15 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"library/elastic"
-	"library/handler"
-	"library/redis"
+	"library/routes"
 )
 
 func main() {
-
-	// Initialize Elasticsearch and Redis clients
-	redis.InitRedisClient()
+	//redis.InitRedisClient()
 	elastic.InitElasticClient()
-	r := gin.Default()
-
-	// Book routes
-	r.POST("/books", handler.AddBookHandler)
-	r.PUT("/books", handler.UpdateBookHandler)
-	r.GET("/books", handler.GetBookHandler)
-	r.DELETE("/books", handler.DeleteBookHandler)
-	r.GET("/search", handler.SearchBooksHandler)
-	r.GET("/store", handler.StoreStatsHandler)
-
-	//Activity route
-	r.GET("/activity", handler.ActivityHandler)
+	router := gin.Default()
+	routes.SetupRoutes(router)
 
 	// Start the server
-	r.Run(":8080")
+	router.Run(":8080")
 }

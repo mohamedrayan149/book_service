@@ -9,15 +9,3 @@ type Book struct {
 	PublishDate    string  `json:"publish_date"`
 	Username       string  `json:"username"`
 }
-
-func NewBook() *Book {
-	return &Book{
-		ID:             "",
-		Title:          "",
-		AuthorName:     "",
-		Price:          0.0,
-		EbookAvailable: false,
-		PublishDate:    "",
-		Username:       "",
-	}
-}
