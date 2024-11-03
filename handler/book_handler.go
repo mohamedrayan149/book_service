@@ -31,7 +31,7 @@ func (bookHandler *BookHandler) DeleteBookHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Book deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "Book deleted successfully"})
 }
 func (bookHandler *BookHandler) AddBookHandler(c *gin.Context) {
 	var book model.Book
@@ -60,7 +60,7 @@ func (bookHandler *BookHandler) UpdateBookHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Book updated"})
+	c.JSON(http.StatusOK, gin.H{"message": "Book updated successfully"})
 }
 func (bookHandler *BookHandler) StoreStatsHandler(c *gin.Context) {
 	bookCount, authorCount, err := bookHandler.bookService.GetStoreStats()

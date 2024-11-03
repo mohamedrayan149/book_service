@@ -15,5 +15,3 @@ func InitElasticClient() {
 		log.Fatalf("Error creating Elasticsearch client: %s", err)
 	}
 }
-
-//http://es-search-7.fiverrdev.com:9200
