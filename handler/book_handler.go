@@ -2,9 +2,44 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"library/model"
 	"library/service"
+	"library/utilites"
 	"net/http"
+)
+
+// Constants for parameter names
+const (
+	IDParam         = "id"
+	TitleParam      = "title"
+	AuthorParam     = "author_name"
+	PriceRangeParam = "price_range"
+	EmptyString     = ""
+)
+
+// Constants for error messages
+const (
+	ErrFailedToGetBook     = "Failed to get book"
+	ErrFailedToAddBook     = "Failed to add book"
+	ErrFailedToUpdateBook  = "Failed to update book"
+	ErrFailedToDeleteBook  = "Failed to delete book"
+	ErrFailedToGetStats    = "Failed to get store stats"
+	ErrFailedToSearchBooks = "Failed to search books"
+	ErrParameterRequired   = "At least one of the following parameters is required: title, author_name, or price_range"
+	ErrInvalidPriceRange   = "price_range must be in the format 'min-max' with numeric values"
+)
+
+// Constants for success messages
+const (
+	SuccessBookDeleted = "Book deleted successfully"
+	SuccessBookUpdated = "Book updated successfully"
+)
+
+// Constants for response fields
+const (
+	BookCountField       = "book_count"
+	DistinctAuthorsField = "distinct_authors"
+	MessageField         = "message"
+	ErrorField           = "error"
 )
 
 type BookHandler struct {
@@ -16,67 +51,100 @@ func NewBookHandler(bookService *service.BookService) *BookHandler {
 }
 
 func (bookHandler *BookHandler) GetBookHandler(c *gin.Context) {
-	id := c.Query("id")
-	book, err := bookHandler.bookService.GetBook(id)
+	id, ok := utilites.GetIDFromQuery(c)
+	if !ok {
+		return // The error response is already handled by GetIDFromQuery
+	}
+	_, ok = utilites.GetUsernameFromQuery(c)
+	if !ok {
+		return
+	}
+	book, err := bookHandler.bookService.GetBookByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		c.JSON(http.StatusNotFound, gin.H{ErrorField: ErrFailedToGetBook})
 		return
 	}
 	c.JSON(http.StatusOK, book)
 }
+
 func (bookHandler *BookHandler) DeleteBookHandler(c *gin.Context) {
-	id := c.Query("id")
-	err := bookHandler.bookService.DeleteBook(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+	id, ok := utilites.GetIDFromQuery(c)
+	if !ok {
+		return // The error response is already handled by GetIDFromQuery
+	}
+	_, ok = utilites.GetUsernameFromQuery(c)
+	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Book deleted successfully"})
+	err := bookHandler.bookService.DeleteBookByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{ErrorField: ErrFailedToDeleteBook})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{MessageField: SuccessBookDeleted})
 }
+
 func (bookHandler *BookHandler) AddBookHandler(c *gin.Context) {
-	var book model.Book
-	if err := c.ShouldBindJSON(&book); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	book, ok := utilites.BindBookData(c)
+	if !ok {
 		return
 	}
-	id, err := bookHandler.bookService.AddBook(&book)
+	id, err := bookHandler.bookService.AddBook(book)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add book"})
+		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToAddBook})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"id": id})
+	c.JSON(http.StatusCreated, gin.H{IDParam: id})
 }
+
 func (bookHandler *BookHandler) UpdateBookHandler(c *gin.Context) {
-	var pair struct {
-		ID    string `json:"id"`
-		Title string `json:"title"`
-	}
-	if err := c.ShouldBindJSON(&pair); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	data, ok := utilites.BindBookUpdateData(c)
+	if !ok {
 		return
 	}
-	err := bookHandler.bookService.UpdateBook(pair.ID, pair.Title)
+	err := bookHandler.bookService.UpdateBook(data.ID, data.Title)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update book"})
+		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToUpdateBook})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Book updated successfully"})
+	c.JSON(http.StatusOK, gin.H{MessageField: SuccessBookUpdated})
 }
+
 func (bookHandler *BookHandler) StoreStatsHandler(c *gin.Context) {
+	_, ok := utilites.GetUsernameFromQuery(c)
+	if !ok {
+		return
+	}
 	bookCount, authorCount, err := bookHandler.bookService.GetStoreStats()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get store stats"})
+		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToGetStats})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"book_count": bookCount, "distinct_authors": authorCount})
+	c.JSON(http.StatusOK, gin.H{BookCountField: bookCount, DistinctAuthorsField: authorCount})
 }
+
 func (bookHandler *BookHandler) SearchBooksHandler(c *gin.Context) {
-	title := c.Query("title")
-	authorName := c.Query("author_name")
-	priceRange := c.Query("price_range")
+	title := c.Query(TitleParam)
+	authorName := c.Query(AuthorParam)
+	priceRange := c.Query(PriceRangeParam)
+	_, ok := utilites.GetUsernameFromQuery(c)
+	if !ok {
+		return
+	}
+	if title == EmptyString && authorName == EmptyString && priceRange == EmptyString {
+		c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrParameterRequired})
+		return
+	}
+	if priceRange != EmptyString {
+		if utilites.CheckPriceRangeValidity(priceRange) != nil {
+			c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrInvalidPriceRange})
+			return
+		}
+	}
 	books, err := bookHandler.bookService.SearchBooks(title, authorName, priceRange)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search books"})
+		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToSearchBooks})
+		return
 	}
 	c.JSON(http.StatusOK, books)
 }

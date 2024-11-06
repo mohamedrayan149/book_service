@@ -6,15 +6,22 @@ import (
 	"log"
 )
 
+const (
+	RedisDevAddr         = "redis-search.fiverrdev.com:6382"
+	RedisDB              = 0
+	ErrorConnectingRedis = "Error connecting to Redis: %v"
+)
+
 var Client *redis.Client
 
 func InitRedisClient() {
 	Client = redis.NewClient(&redis.Options{
-		Addr: "redis-search.fiverrdev.com:6382",
-		DB:   0,
+		Addr: RedisDevAddr,
+		DB:   RedisDB,
 	})
+
 	_, err := Client.Ping(context.Background()).Result()
 	if err != nil {
-		log.Fatalf("Error connecting to Redis: %v", err)
+		log.Fatalf(ErrorConnectingRedis, err)
 	}
 }

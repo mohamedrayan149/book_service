@@ -5,13 +5,21 @@ import (
 	"log"
 )
 
+const (
+	ElasticDevURL   = "http://es-search-7.fiverrdev.com:9200"
+	ErrorInitClient = "Error creating Elasticsearch client: %s"
+)
+
 var Client *elastic.Client
 
 func InitElasticClient() {
 	var err error
-	Client, err = elastic.NewClient(elastic.SetURL("http://es-search-7.fiverrdev.com:9200"), elastic.SetSniff(false))
+	Client, err = elastic.NewClient(
+		elastic.SetURL(ElasticDevURL),
+		elastic.SetSniff(false),
+	)
 
 	if err != nil {
-		log.Fatalf("Error creating Elasticsearch client: %s", err)
+		log.Fatalf(ErrorInitClient, err)
 	}
 }

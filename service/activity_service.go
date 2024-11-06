@@ -3,10 +3,10 @@ package service
 import "library/repository"
 
 type ActivityService struct {
-	activityRepository *repository.ActivityRepository
+	activityRepository repository.ActivityRepository
 }
 
-func NewActivityService(activityRepository *repository.ActivityRepository) *ActivityService {
+func NewActivityService(activityRepository repository.ActivityRepository) *ActivityService {
 	return &ActivityService{activityRepository: activityRepository}
 }
 

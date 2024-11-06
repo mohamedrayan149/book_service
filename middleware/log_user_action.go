@@ -8,6 +8,13 @@ import (
 	"library/service"
 )
 
+const (
+	UsernameParam    = "username"
+	ActivityEndpoint = "/activity"
+	EmptyString      = ""
+	Space            = " "
+)
+
 type LogUserActionMiddleware struct {
 	activityService *service.ActivityService
 }
@@ -20,9 +27,9 @@ func (middleware *LogUserActionMiddleware) LogUserActionMiddleware() gin.Handler
 	return func(c *gin.Context) {
 
 		// trying to get username from query Params
-		username := c.Query("username")
+		username := c.Query(UsernameParam)
 		// if not found try to get from JSON body
-		if username == "" {
+		if username == EmptyString {
 			//this is important because I cant get body json twice
 			var bodyBytes []byte
 			if c.Request.Body != nil {
@@ -37,14 +44,12 @@ func (middleware *LogUserActionMiddleware) LogUserActionMiddleware() gin.Handler
 				username = requestBody.Username
 			}
 		}
-		if username == "" || c.FullPath() == "/activity" || c.FullPath() == "" {
+		if username == EmptyString || c.FullPath() == ActivityEndpoint || c.FullPath() == EmptyString {
 			c.Next()
 			return
 		}
-		action := c.Request.Method + " " + c.FullPath()
-		//fmt.Println(action)
+		action := c.Request.Method + Space + c.FullPath()
 		err := middleware.activityService.LogUserAction(username, action)
-		//fmt.Println(err)
 		if err != nil {
 			return
 		}
