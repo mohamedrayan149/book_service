@@ -10,3 +10,8 @@ type BookRepository interface {
 	GetStoreStats() (int, int, error)
 	SearchBooks(title, authorName, priceRange string) ([]*model.Book, error)
 }
+
+type ActivityRepository interface {
+	LogUserAction(username, action string) error
+	GetLastUserActions(username string) ([]string, error)
+}

@@ -1,4 +1,4 @@
-package redis
+package connectors
 
 import (
 	"context"
@@ -12,16 +12,15 @@ const (
 	ErrorConnectingRedis = "Error connecting to Redis: %v"
 )
 
-var Client *redis.Client
-
-func InitRedisClient() {
-	Client = redis.NewClient(&redis.Options{
+func InitRedisClient() *redis.Client {
+	RedisClient := redis.NewClient(&redis.Options{
 		Addr: RedisDevAddr,
 		DB:   RedisDB,
 	})
 
-	_, err := Client.Ping(context.Background()).Result()
+	_, err := RedisClient.Ping(context.Background()).Result()
 	if err != nil {
 		log.Fatalf(ErrorConnectingRedis, err)
 	}
+	return RedisClient
 }

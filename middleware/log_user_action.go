@@ -5,22 +5,25 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"io"
-	"library/service"
+	"library/repository"
+	"net/http"
 )
 
 const (
-	UsernameParam    = "username"
-	ActivityEndpoint = "/activity"
-	EmptyString      = ""
-	Space            = " "
+	UsernameParam       = "username"
+	ActivityEndpoint    = "/activity"
+	EmptyString         = ""
+	Space               = " "
+	ErrorField          = "error"
+	ErrUserNameRequired = "Username is a required field."
 )
 
 type LogUserActionMiddleware struct {
-	activityService *service.ActivityService
+	activityRepository repository.ActivityRepository
 }
 
-func NewLogUserActionMiddleware(activityService *service.ActivityService) *LogUserActionMiddleware {
-	return &LogUserActionMiddleware{activityService: activityService}
+func NewLogUserActionMiddleware(activityRepository repository.ActivityRepository) *LogUserActionMiddleware {
+	return &LogUserActionMiddleware{activityRepository: activityRepository}
 }
 
 func (middleware *LogUserActionMiddleware) LogUserActionMiddleware() gin.HandlerFunc {
@@ -44,12 +47,17 @@ func (middleware *LogUserActionMiddleware) LogUserActionMiddleware() gin.Handler
 				username = requestBody.Username
 			}
 		}
-		if username == EmptyString || c.FullPath() == ActivityEndpoint || c.FullPath() == EmptyString {
+		if username == EmptyString {
+			c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrUserNameRequired})
+			c.Abort() // Prevents further handler/middleware processing
+			return
+		}
+		if c.FullPath() == ActivityEndpoint || c.FullPath() == EmptyString {
 			c.Next()
 			return
 		}
 		action := c.Request.Method + Space + c.FullPath()
-		err := middleware.activityService.LogUserAction(username, action)
+		err := middleware.activityRepository.LogUserAction(username, action)
 		if err != nil {
 			return
 		}

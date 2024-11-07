@@ -2,39 +2,31 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"library/elastic"
-	"library/handler"
 	"library/middleware"
-	"library/redis"
 	"library/repository"
-	"library/routes"
 	"library/service"
+	"log"
 )
 
 const ServerPort = ":8080"
 
 func main() {
-	redis.InitRedisClient()
-	elastic.InitElasticClient()
+
 	router := gin.Default()
 
-	// Initializing Repository layer
-	bookRepository := repository.NewElasticsearchBookRepository()
-	activityRepository := repository.NewRedisActivityRepository()
+	bookSearchStore := repository.NewBookElasticRepo()
+	userActivityCache := repository.NewActivityRedisRepo()
 
-	// Initializing Service layer
-	bookService := service.NewBookService(bookRepository)
-	activityService := service.NewActivityService(activityRepository)
+	handler := service.NewHandler(bookSearchStore, userActivityCache)
 
-	// Initializing Handler layer
-	bookHandler := handler.NewBookHandler(bookService)
-	activityHandler := handler.NewActivityHandler(activityService)
-
-	// Initializing Middleware
-	logMiddleware := middleware.NewLogUserActionMiddleware(activityService)
+	logMiddleware := middleware.NewLogUserActionMiddleware(userActivityCache)
 	router.Use(logMiddleware.LogUserActionMiddleware())
 
-	routes.SetupRoutes(router, bookHandler, activityHandler)
+	service.SetupRoutes(router, handler)
 
-	router.Run(ServerPort)
+	err := router.Run(ServerPort)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 }

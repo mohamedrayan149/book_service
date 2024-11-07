@@ -1,4 +1,4 @@
-package elastic
+package connectors
 
 import (
 	"github.com/olivere/elastic/v7"
@@ -10,16 +10,14 @@ const (
 	ErrorInitClient = "Error creating Elasticsearch client: %s"
 )
 
-var Client *elastic.Client
-
-func InitElasticClient() {
+func InitElasticClient() *elastic.Client {
 	var err error
-	Client, err = elastic.NewClient(
+	ElasticClient, err := elastic.NewClient(
 		elastic.SetURL(ElasticDevURL),
 		elastic.SetSniff(false),
 	)
-
 	if err != nil {
 		log.Fatalf(ErrorInitClient, err)
 	}
+	return ElasticClient
 }
