@@ -2,22 +2,18 @@ package connectors
 
 import (
 	"github.com/olivere/elastic/v7"
+	"library/config"
 	"log"
-)
-
-const (
-	ElasticDevURL   = "http://es-search-7.fiverrdev.com:9200"
-	ErrorInitClient = "Error creating Elasticsearch client: %s"
 )
 
 func InitElasticClient() *elastic.Client {
 	var err error
 	ElasticClient, err := elastic.NewClient(
-		elastic.SetURL(ElasticDevURL),
+		elastic.SetURL(config.ElasticDevURL),
 		elastic.SetSniff(false),
 	)
 	if err != nil {
-		log.Fatalf(ErrorInitClient, err)
+		log.Fatalf(config.ErrorInitClient, err)
 	}
 	return ElasticClient
 }

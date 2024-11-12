@@ -1,62 +1,33 @@
 package middleware
 
 import (
-	"bytes"
-	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"io"
-	"library/repository"
+	"library/config"
+	"library/datastore"
 	"net/http"
 )
 
-const (
-	UsernameParam       = "username"
-	ActivityEndpoint    = "/activity"
-	EmptyString         = ""
-	Space               = " "
-	ErrorField          = "error"
-	ErrUserNameRequired = "Username is a required field."
-)
-
 type LogUserActionMiddleware struct {
-	activityRepository repository.ActivityRepository
+	activityRepository datastore.UserActivity
 }
 
-func NewLogUserActionMiddleware(activityRepository repository.ActivityRepository) *LogUserActionMiddleware {
+func NewLogUserActionMiddleware(activityRepository datastore.UserActivity) *LogUserActionMiddleware {
 	return &LogUserActionMiddleware{activityRepository: activityRepository}
 }
 
 func (middleware *LogUserActionMiddleware) LogUserActionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		// trying to get username from query Params
-		username := c.Query(UsernameParam)
-		// if not found try to get from JSON body
-		if username == EmptyString {
-			//this is important because I cant get body json twice
-			var bodyBytes []byte
-			if c.Request.Body != nil {
-				bodyBytes, _ = io.ReadAll(c.Request.Body)
-			}
-			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-			var requestBody struct {
-				Username string `json:"username"`
-			}
-			if err := json.Unmarshal(bodyBytes, &requestBody); err == nil {
-				username = requestBody.Username
-			}
-		}
-		if username == EmptyString {
-			c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrUserNameRequired})
+		username := c.Query(config.UsernameParam)
+		if username == config.EmptyString {
+			c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: config.ErrUserNameRequired})
 			c.Abort() // Prevents further handler/middleware processing
 			return
 		}
-		if c.FullPath() == ActivityEndpoint || c.FullPath() == EmptyString {
+		if c.FullPath() == config.ActivityRoute || c.FullPath() == config.EmptyString {
 			c.Next()
 			return
 		}
-		action := c.Request.Method + Space + c.FullPath()
+		action := c.Request.Method + config.Space + c.FullPath()
 		err := middleware.activityRepository.LogUserAction(username, action)
 		if err != nil {
 			return

@@ -2,154 +2,131 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
-	"library/repository"
-	"library/utilites"
+	"library/config"
+	"library/datastore"
+	"library/utilities"
 	"net/http"
 )
 
-// Constants for parameter names
-const (
-	IDParam         = "id"
-	TitleParam      = "title"
-	AuthorParam     = "author_name"
-	PriceRangeParam = "price_range"
-	UsernameParam   = "username"
-	EmptyString     = ""
-)
-
-// Constants for error messages
-const (
-	ErrFailedToGetBook     = "Failed to get book"
-	ErrFailedToAddBook     = "Failed to add book"
-	ErrFailedToUpdateBook  = "Failed to update book"
-	ErrFailedToDeleteBook  = "Failed to delete book"
-	ErrFailedToGetStats    = "Failed to get store stats"
-	ErrFailedToSearchBooks = "Failed to search books"
-	ErrParameterRequired   = "At least one of the following parameters is required: title, author_name, or price_range"
-	ErrInvalidPriceRange   = "price_range must be in the format 'min-max' with numeric values"
-	ErrorUsernameRequired  = "username is required"
-)
-
-// Constants for success messages
-const (
-	SuccessBookDeleted = "Book deleted successfully"
-	SuccessBookUpdated = "Book updated successfully"
-)
-
-// Constants for response fields
-const (
-	ActionsField         = "actions"
-	BookCountField       = "book_count"
-	DistinctAuthorsField = "distinct_authors"
-	MessageField         = "message"
-	ErrorField           = "error"
-)
-
 type Handler struct {
-	bookRepository     repository.BookRepository
-	activityRepository repository.ActivityRepository
+	bookStore    datastore.BookStore
+	userActivity datastore.UserActivity
 }
 
-func NewHandler(bookRepository repository.BookRepository, activityRepository repository.ActivityRepository) *Handler {
-	return &Handler{bookRepository: bookRepository, activityRepository: activityRepository}
+func NewHandler(bookStore datastore.BookStore, userActivity datastore.UserActivity) *Handler {
+	return &Handler{bookStore: bookStore, userActivity: userActivity}
 }
 
 func (h *Handler) GetBook(c *gin.Context) {
-	id, ok := utilites.GetIDFromQuery(c)
-	if !ok {
-		return // The error response is already handled by GetIDFromQuery
+	id := c.Query(config.FieldID)
+	if id == config.EmptyString {
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: config.ErrIDRequired})
+		return
 	}
-	book, err := h.bookRepository.GetBookByID(id)
+	book, err := h.bookStore.GetBook(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{ErrorField: ErrFailedToGetBook})
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
 		return
 	}
 	c.JSON(http.StatusOK, book)
 }
 
 func (h *Handler) DeleteBook(c *gin.Context) {
-	id, ok := utilites.GetIDFromQuery(c)
-	if !ok {
-		return // The error response is already handled by GetIDFromQuery
-	}
-	err := h.bookRepository.DeleteBookByID(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{ErrorField: ErrFailedToDeleteBook})
+	id := c.Query(config.FieldID)
+	if id == config.EmptyString {
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: config.ErrIDRequired})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{MessageField: SuccessBookDeleted})
+	err := h.bookStore.DeleteBook(id)
+	if err != nil {
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{config.MessageField: config.SuccessBookDeleted})
 }
 
 func (h *Handler) AddBook(c *gin.Context) {
-	book, ok := utilites.BindBookData(c)
-	if !ok {
+	var bookToAdd config.BookAddData
+	if err := c.ShouldBindJSON(&bookToAdd); err != nil {
+		errorMessages := utilities.GetAddBookValidationErrors(err)
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: errorMessages})
 		return
 	}
-	id, err := h.bookRepository.AddBook(book)
+	id, err := h.bookStore.AddBook(&bookToAdd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToAddBook})
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{IDParam: id})
+	c.JSON(http.StatusCreated, gin.H{config.IDParam: id})
 }
 
 func (h *Handler) UpdateBook(c *gin.Context) {
-	data, ok := utilites.BindBookUpdateData(c)
-	if !ok {
+	var bookToUpdate config.BookUpdateData
+	if err := c.ShouldBindJSON(&bookToUpdate); err != nil {
+		errorMessages := utilities.GetUpdateBookValidationErrors(err)
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: errorMessages})
 		return
 	}
-	err := h.bookRepository.UpdateBook(data.ID, data.Title)
+	err := h.bookStore.UpdateBook(bookToUpdate.ID, bookToUpdate.Title)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToUpdateBook})
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{MessageField: SuccessBookUpdated})
+	c.JSON(http.StatusOK, gin.H{config.MessageField: config.SuccessBookUpdated})
 }
 
 func (h *Handler) StoreStats(c *gin.Context) {
-	bookCount, authorCount, err := h.bookRepository.GetStoreStats()
+	bookCount, authorCount, err := h.bookStore.GetStoreStats()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToGetStats})
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{BookCountField: bookCount, DistinctAuthorsField: authorCount})
+	c.JSON(http.StatusOK, gin.H{config.BookCountField: bookCount, config.DistinctAuthorsField: authorCount})
 }
 
 func (h *Handler) SearchBooks(c *gin.Context) {
-	title := c.Query(TitleParam)
-	authorName := c.Query(AuthorParam)
-	priceRange := c.Query(PriceRangeParam)
+	title := c.Query(config.TitleParam)
+	authorName := c.Query(config.AuthorParam)
+	priceRange := c.Query(config.PriceRangeParam)
 
-	if title == EmptyString && authorName == EmptyString && priceRange == EmptyString {
-		c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrParameterRequired})
+	if title == config.EmptyString && authorName == config.EmptyString && priceRange == config.EmptyString {
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: config.ErrParameterRequired})
 		return
 	}
-	if priceRange != EmptyString {
-		if utilites.CheckPriceRangeValidity(priceRange) != nil {
-			c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrInvalidPriceRange})
+	if priceRange != config.EmptyString {
+		if err := utilities.CheckPriceRangeValidity(priceRange); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: err.Error()})
 			return
 		}
 	}
-	books, err := h.bookRepository.SearchBooks(title, authorName, priceRange)
+	books, err := h.bookStore.SearchBooks(title, authorName, priceRange)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: ErrFailedToSearchBooks})
+		httpError := utilities.ParseElasticsearchErrorCode(err)
+		c.JSON(httpError.Code, gin.H{config.ErrorField: config.ElasticsearchErrorMap[httpError.Code]})
+		return
+	}
+	if len(books) == 0 {
+		c.JSON(http.StatusNotFound, config.NoResultFound)
 		return
 	}
 	c.JSON(http.StatusOK, books)
 }
 
 func (h *Handler) Activity(c *gin.Context) {
-	username := c.Query(UsernameParam)
-	if username == EmptyString {
-		c.JSON(http.StatusBadRequest, gin.H{ErrorField: ErrorUsernameRequired})
+	username := c.Query(config.UsernameParam)
+	if username == config.EmptyString {
+		c.JSON(http.StatusBadRequest, gin.H{config.ErrorField: config.ErrorUsernameRequired})
 		return
 	}
-
-	actions, err := h.activityRepository.GetLastUserActions(username)
+	actions, err := h.userActivity.GetLastUserActions(username)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{ErrorField: err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{config.ErrorField: err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{ActionsField: actions})
+	c.JSON(http.StatusOK, gin.H{config.ActionsField: actions})
 }

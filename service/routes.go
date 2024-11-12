@@ -2,27 +2,20 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
+	"library/config"
 )
 
-const (
-	BooksBaseRoute   = "/books"
-	Slash            = "/"
-	StoreStatsRoute  = "/store"
-	SearchBooksRoute = "/search"
-	ActivityRoute    = "/activity"
-)
+func Routes(router *gin.Engine, handler *Handler) {
 
-func SetupRoutes(router *gin.Engine, handler *Handler) {
-
-	bookRoutes := router.Group(BooksBaseRoute)
+	bookRoutes := router.Group(config.BooksBaseRoute)
 	{
-		bookRoutes.GET(Slash, handler.GetBook)
-		bookRoutes.DELETE(Slash, handler.DeleteBook)
-		bookRoutes.PUT(Slash, handler.UpdateBook)
-		bookRoutes.POST(Slash, handler.AddBook)
+		bookRoutes.GET(config.Slash, handler.GetBook)
+		bookRoutes.DELETE(config.Slash, handler.DeleteBook)
+		bookRoutes.PUT(config.Slash, handler.UpdateBook)
+		bookRoutes.POST(config.Slash, handler.AddBook)
 	}
 
-	router.GET(StoreStatsRoute, handler.StoreStats)
-	router.GET(SearchBooksRoute, handler.SearchBooks)
-	router.GET(ActivityRoute, handler.Activity)
+	router.GET(config.StoreStatsRoute, handler.StoreStats)
+	router.GET(config.SearchBooksRoute, handler.SearchBooks)
+	router.GET(config.ActivityRoute, handler.Activity)
 }
