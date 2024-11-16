@@ -66,7 +66,7 @@ book_service/
 ## Dependencies
 
 - **[Gin](https://github.com/gin-gonic/gin)**: A fast and lightweight web framework for Go.
-- **[Elasticsearch](https://github.com/olivere/elastic/v7)**: A distributed full-text search and analytics engine.
-- **[Redis](https://github.com/go-redis/redis/v8)**: An in-memory database for caching and data storage.
+- **[Elasticsearch](https://github.com/olivere/elastic)**: A distributed full-text search and analytics engine.
+- **[Redis](https://github.com/go-redis/redis)**: An in-memory database for caching and data storage.
 
 ---
